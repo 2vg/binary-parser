@@ -11,7 +11,7 @@ pub struct BinaryParser {
     buffer: Vec<u8>,
     position: usize,
     length: usize,
-    endian: Endian
+    endian: Endian,
 }
 
 impl BinaryParser {
@@ -31,11 +31,7 @@ impl BinaryParser {
         BinaryParser::new(vec, pos, length, endian)
     }
 
-    pub fn from_vec(vec: Vec<u8>) -> BinaryParser {
-        BinaryParser::init(vec)
-    }
-
-    pub fn from_vec_ref(vec: &Vec<u8>) -> BinaryParser {
+    pub fn from_vec(vec: &Vec<u8>) -> BinaryParser {
         BinaryParser::init(vec.to_vec())
     }
 
@@ -168,4 +164,19 @@ impl BinaryParser {
             Endian::Little => { bin.read_f64::<LittleEndian>() }
         }
     }
+}
+
+#[test]
+fn test_basic_binary_parse() {
+    let string_binary = [0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64]; //hello world
+    let mut parse = BinaryParser::from_u8_slice(&string_binary);
+    let result = parse.read_string();
+
+    assert_eq!("hello world", result);
+
+    let float_binary = [0x3f, 0x8c, 0xcc, 0xcd]; //1.1
+    let mut parse = BinaryParser::from_u8_slice(&float_binary);
+    let result = parse.read_f32().unwrap();
+
+    assert_eq!(1.1, result);
 }
