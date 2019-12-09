@@ -78,7 +78,7 @@ impl BinaryParser {
                 pos += 1;
             }
         }
-        String::from_utf8(vec).unwrap()
+        String::from_utf8(vec).unwrap_or("invalid_utf8".to_string())
     }
 
     pub fn read_i8(&mut self) -> std::io::Result<i8> {
