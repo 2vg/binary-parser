@@ -1,5 +1,7 @@
+extern crate anyhow;
 extern crate byteorder;
 
+use anyhow::*;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 
 pub enum Endian {
@@ -10,25 +12,22 @@ pub enum Endian {
 pub struct BinaryParser {
     buffer: Vec<u8>,
     position: usize,
-    length: usize,
     endian: Endian,
 }
 
 impl BinaryParser {
-    fn new(buffer: Vec<u8>, position: usize, length: usize, endian: Endian) -> BinaryParser {
+    fn new(buffer: Vec<u8>, position: usize, endian: Endian) -> BinaryParser {
         BinaryParser {
             buffer,
             position,
-            length,
             endian
         }
     }
 
     fn init(vec: Vec<u8>) -> BinaryParser {
         let pos = 0;
-        let length = vec.len();
         let endian = Endian::Big;
-        BinaryParser::new(vec, pos, length, endian)
+        BinaryParser::new(vec, pos, endian)
     }
 
     pub fn from_vec(vec: &Vec<u8>) -> BinaryParser {
@@ -63,11 +62,11 @@ impl BinaryParser {
         self.position -= pos;
     }
 
-    pub fn read_string(&mut self) -> String {
+    pub fn read_string(&mut self) -> anyhow::Result<String> {
         let buffer = &self.buffer;
         let mut vec = Vec::new();
         let mut pos = 0;
-        while self.position + pos < self.length {
+        while self.position + pos < self.buffer.len() {
             let bin = buffer[&self.position + pos];
             if bin == 0x00 {
                 self.position += pos + 1;
@@ -78,91 +77,101 @@ impl BinaryParser {
                 pos += 1;
             }
         }
-        String::from_utf8(vec).unwrap_or("invalid_utf8".to_string())
+        let result = String::from_utf8(vec)?;
+        Ok(result)
     }
 
-    pub fn read_i8(&mut self) -> std::io::Result<i8> {
-        let bin = self.buffer[self.position];
+    pub fn read_i8(&mut self) -> anyhow::Result<i8> {
+        let bin = &get_slice(&self.buffer, self.position, 1);
         self.position += 1;
-        Ok(bin as i8)
+        if bin.len() != 0 { Ok(bin[0] as i8) } else { Err(anyhow!(0)) }
     }
 
-    pub fn read_i16(&mut self) -> std::io::Result<i16> {
-        let mut bin = &self.buffer[self.position..self.position + 2];
+    pub fn read_i16(&mut self) -> anyhow::Result<i16> {
+        let mut bin = get_slice(&self.buffer, self.position, 2);
         self.position += 2;
         match self.endian {
-            Endian::Big => { bin.read_i16::<BigEndian>() },
-            Endian::Little => { bin.read_i16::<LittleEndian>() }
+            Endian::Big => { let result = bin.read_i16::<BigEndian>()?; Ok(result) },
+            Endian::Little => { let result = bin.read_i16::<LittleEndian>()?; Ok(result) }
         }
     }
 
-    pub fn read_i32(&mut self) -> std::io::Result<i32> {
-        let mut bin = &self.buffer[self.position..self.position + 4];
+    pub fn read_i32(&mut self) -> anyhow::Result<i32> {
+        let mut bin = get_slice(&self.buffer, self.position, 4);
         self.position += 4;
         match self.endian {
-            Endian::Big => { bin.read_i32::<BigEndian>() },
-            Endian::Little => { bin.read_i32::<LittleEndian>() }
+            Endian::Big => { let result = bin.read_i32::<BigEndian>()?; Ok(result) },
+            Endian::Little => { let result = bin.read_i32::<LittleEndian>()?; Ok(result) }
         }
     }
 
-    pub fn read_i64(&mut self) -> std::io::Result<i64> {
-        let mut bin = &self.buffer[self.position..self.position + 8];
+    pub fn read_i64(&mut self) -> anyhow::Result<i64> {
+        let mut bin = get_slice(&self.buffer, self.position, 8);
         self.position += 8;
         match self.endian {
-            Endian::Big => { bin.read_i64::<BigEndian>() },
-            Endian::Little => { bin.read_i64::<LittleEndian>() }
+            Endian::Big => { let result = bin.read_i64::<BigEndian>()?; Ok(result) },
+            Endian::Little => { let result = bin.read_i64::<LittleEndian>()?; Ok(result) }
         }
     }
 
-    pub fn read_u8(&mut self) -> std::io::Result<u8> {
-        let bin = self.buffer[self.position];
+    pub fn read_u8(&mut self) -> anyhow::Result<u8> {
+        let bin = get_slice(&self.buffer, self.position, 1);
         self.position += 1;
-        Ok(bin as u8)
+        if bin.len() != 0 { Ok(bin[0]) } else { Err(anyhow!(0)) }
     }
 
-    pub fn read_u16(&mut self) -> std::io::Result<u16> {
-        let mut bin = &self.buffer[self.position..self.position + 2];
+    pub fn read_u16(&mut self) -> anyhow::Result<u16> {
+        let mut bin = get_slice(&self.buffer, self.position, 2);
         self.position += 2;
         match self.endian {
-            Endian::Big => { bin.read_u16::<BigEndian>() },
-            Endian::Little => { bin.read_u16::<LittleEndian>() }
+            Endian::Big => { let result = bin.read_u16::<BigEndian>()?; Ok(result) },
+            Endian::Little => { let result = bin.read_u16::<LittleEndian>()?; Ok(result) }
         }
     }
 
-    pub fn read_u32(&mut self) -> std::io::Result<u32> {
-        let mut bin = &self.buffer[self.position..self.position + 4];
+    pub fn read_u32(&mut self) -> anyhow::Result<u32> {
+        let mut bin = get_slice(&self.buffer, self.position, 4);
         self.position += 4;
         match self.endian {
-            Endian::Big => { bin.read_u32::<BigEndian>() },
-            Endian::Little => { bin.read_u32::<LittleEndian>() }
+            Endian::Big => { let result = bin.read_u32::<BigEndian>()?; Ok(result) },
+            Endian::Little => { let result = bin.read_u32::<LittleEndian>()?; Ok(result) }
         }
     }
 
-    pub fn read_u64(&mut self) -> std::io::Result<u64> {
-        let mut bin = &self.buffer[self.position..self.position + 8];
+    pub fn read_u64(&mut self) -> anyhow::Result<u64> {
+        let mut bin = get_slice(&self.buffer, self.position, 8);
         self.position += 8;
         match self.endian {
-            Endian::Big => { bin.read_u64::<BigEndian>() },
-            Endian::Little => { bin.read_u64::<LittleEndian>() }
+            Endian::Big => { let result = bin.read_u64::<BigEndian>()?; Ok(result) },
+            Endian::Little => { let result = bin.read_u64::<LittleEndian>()?; Ok(result) }
         }
     }
 
-    pub fn read_f32(&mut self) -> std::io::Result<f32> {
-        let mut bin = &self.buffer[self.position..self.position + 4];
+    pub fn read_f32(&mut self) -> anyhow::Result<f32> {
+        let mut bin = get_slice(&self.buffer, self.position, 4);
         self.position += 4;
         match self.endian {
-            Endian::Big => { bin.read_f32::<BigEndian>() },
-            Endian::Little => { bin.read_f32::<LittleEndian>() }
+            Endian::Big => { let result = bin.read_f32::<BigEndian>()?; Ok(result) },
+            Endian::Little => { let result = bin.read_f32::<LittleEndian>()?; Ok(result) }
         }
     }
 
-    pub fn read_f64(&mut self) -> std::io::Result<f64> {
-        let mut bin = &self.buffer[self.position..self.position + 8];
+    pub fn read_f64(&mut self) -> anyhow::Result<f64> {
+        let mut bin = get_slice(&self.buffer, self.position, 8);
         self.position += 8;
         match self.endian {
-            Endian::Big => { bin.read_f64::<BigEndian>() },
-            Endian::Little => { bin.read_f64::<LittleEndian>() }
+            Endian::Big => { let result = bin.read_f64::<BigEndian>()?; Ok(result) },
+            Endian::Little => { let result = bin.read_f64::<LittleEndian>()?; Ok(result) }
         }
+    }
+}
+
+fn get_slice(slice: &[u8], position: usize, length: usize) -> &[u8] {
+    if position + length > slice.len() {
+        &[] as &[u8]
+    }
+    else {
+        &slice[position..position + length]
     }
 }
 
@@ -172,8 +181,35 @@ fn test_basic_binary_parse() {
     let mut parse = BinaryParser::from_u8_slice(&binary);
 
     let result = parse.read_string();
-    assert_eq!("hello world", result);
+    assert_ne!(true, result.is_err());
+    assert_eq!("hello world", result.unwrap());
 
-    let result = parse.read_f32().unwrap();
-    assert_eq!(1.1, result);
+    let result = parse.read_f32();
+    assert_ne!(true, result.is_err());
+    assert_eq!(1.1, result.unwrap());
+}
+
+#[test]
+fn test_basic_binary_parse_failed() {
+    let binary = [0xFF, 0xFF, 0xFF];
+    let mut parse = BinaryParser::from_u8_slice(&binary);
+
+    let result = parse.read_string();
+    assert_eq!(true, result.is_err());
+
+    let result = parse.read_f32();
+    assert_eq!(true, result.is_err());
+}
+
+#[test]
+fn test_binary_parse_with_empty_array() {
+    let binary = [];
+    let mut parse = BinaryParser::from_u8_slice(&binary);
+
+    let result = parse.read_string();
+    assert_eq!(true, result.is_ok());
+    assert_eq!("", result.unwrap());
+
+    let result = parse.read_f32();
+    assert_eq!(true, result.is_err());
 }
